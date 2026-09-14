@@ -1,0 +1,13 @@
+/mimiban
+/mimiban.exe
+/dist/
+/config.json
+/mimiban.sqlite3*
+/recordings/
+/runtime/*
+!/runtime/README.md
+/models/*
+!/models/.gitkeep
+*.part
+
+.claude/

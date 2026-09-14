@@ -1,0 +1,12 @@
+{
+  "transcribing": "Transcribing…",
+  "field_time": "Time",
+  "field_length": "Length",
+  "field_peak": "Peak",
+  "truncated": "(continued in the UI)",
+  "more_calls": "{n} more call(s)",
+  "open_in_ui": "Open in UI:",
+  "test_title": "Mimiban test notification",
+  "test_body": "This webhook is configured correctly.",
+  "seconds": "%.1f s"
+}

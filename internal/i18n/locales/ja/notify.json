@@ -1,0 +1,12 @@
+{
+  "transcribing": "文字起こし中…",
+  "field_time": "日時",
+  "field_length": "長さ",
+  "field_peak": "ピーク",
+  "truncated": "（続きは UI で）",
+  "more_calls": "他に {n} 件",
+  "open_in_ui": "UI で開く:",
+  "test_title": "Mimiban テスト通知",
+  "test_body": "この Webhook は正しく設定されています。",
+  "seconds": "%.1f 秒"
+}

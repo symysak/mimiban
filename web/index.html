@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mimiban</title>
+<style>
+:root{--bg:#0f1115;--panel:#181b22;--panel2:#1f232c;--line:#2a2f3a;--fg:#e6e8ee;--muted:#8b93a7;--accent:#3b82f6;--ok:#22c55e;--rec:#ef4444;--warn:#f59e0b;--err:#f97316;--radius:10px}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Hiragino Sans","Noto Sans JP",sans-serif}
+a{color:var(--accent)}
+button{font:inherit;color:var(--fg);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer;white-space:nowrap}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.danger{border-color:var(--rec);color:var(--rec)}
+button.small{padding:3px 8px;font-size:12px}
+button:disabled{opacity:.5;cursor:default}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:6px 8px;min-width:0;max-width:100%}
+input[type=color]{padding:0;width:40px;height:32px}
+input[type=checkbox]{width:16px;height:16px}
+textarea{width:100%;min-height:70px}
+label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+label > input,label > select{color:var(--fg)}
+label.row{flex-direction:row;align-items:center;gap:8px;font-size:13px;color:var(--fg)}
+header{display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5;flex-wrap:wrap}
+header h1{font-size:18px;margin:0;letter-spacing:.5px}
+header h1 small{color:var(--muted);font-weight:normal;font-size:12px;margin-left:6px}
+nav{display:flex;gap:4px;flex:1}
+nav button{background:transparent;border-color:transparent;color:var(--muted)}
+nav button.active{color:var(--fg);border-color:var(--line);background:var(--panel)}
+.pill{font-size:12px;padding:3px 10px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--muted)}
+.pill.ok{color:var(--ok)} .pill.warn{color:var(--warn)} .pill.err{color:var(--err)}
+main{padding:16px;max-width:1200px;margin:0 auto}
+section.tab{display:none} section.tab.active{display:block}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:14px}
+.panel h2{font-size:14px;margin:0 0 10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.6px}
+.warn-box{background:#3a2a10;border:1px solid var(--warn);color:#fde68a;padding:10px 12px;border-radius:8px;margin-bottom:12px}
+.err-box{background:#3a1a10;border:1px solid var(--err);color:#fed7aa;padding:10px 12px;border-radius:8px;margin-bottom:12px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);cursor:pointer;white-space:nowrap}
+.chip.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.cdot{width:10px;height:10px;border-radius:50%;flex:none}
+.sdot{width:9px;height:9px;border-radius:50%;flex:none;background:#555}
+.sdot.stopped{background:#555}.sdot.listening{background:var(--ok)}.sdot.recording{background:var(--rec);animation:blink 1s infinite}
+.sdot.error{background:var(--err)}.sdot.waiting{background:transparent;border:2px dotted #888}
+@keyframes blink{50%{opacity:.2}}
+.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.grid.wide{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.meter{position:relative;height:28px;background:#0a0c10;border:1px solid var(--line);border-radius:6px;overflow:hidden;margin:10px 0;touch-action:none;user-select:none}
+.meter .bar{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,#16a34a,#84cc16 60%,#f59e0b 85%,#ef4444);width:0;transition:width .12s linear}
+.meter .thr{position:absolute;top:0;bottom:0;width:3px;background:#fff;cursor:ew-resize;box-shadow:0 0 0 1px #000}
+.meter .thr::after{content:"";position:absolute;left:-10px;right:-10px;top:0;bottom:0}
+.meter .scale{position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:space-between;font-size:9px;color:#666;padding:0 3px;pointer-events:none}
+.readout{display:flex;gap:16px;flex-wrap:wrap;font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
+.readout b{color:var(--fg);font-weight:600}
+.btns{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.msg{font-size:12px;color:var(--muted);min-height:1.2em}
+.msg.ok{color:var(--ok)} .msg.err{color:var(--err)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:12px}
+tr.hl td{background:#1e2a44}
+.rxname{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.tx{white-space:pre-wrap;word-break:break-word}
+.tx.pending,.tx.running{color:var(--muted);font-style:italic}
+.tx.error{color:var(--err)} .tx.skipped{color:var(--muted)} .tx.empty{color:var(--muted)}
+.ops{display:flex;gap:4px;flex-wrap:wrap}
+.pager{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:10px;color:var(--muted);font-size:13px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kpi{background:var(--panel2);border-radius:8px;padding:10px}
+.kpi .v{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:12px;color:var(--muted)}
+.chart{height:180px;width:100%}
+.chart rect{fill:var(--accent)} .chart rect.dur{fill:#a78bfa}
+.chart text{fill:var(--muted);font-size:10px}
+.legend{font-size:12px;color:var(--muted);display:flex;gap:12px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:middle}
+.dict tr td:last-child{width:60px}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+pre.cmd{background:#0a0c10;border:1px solid var(--line);border-radius:8px;padding:10px;overflow-x:auto;font-size:12px;white-space:pre-wrap;word-break:break-all}
+.hidden{display:none!important}
+.muted{color:var(--muted)}
+.prog{height:6px;background:#0a0c10;border-radius:3px;overflow:hidden}
+.prog i{display:block;height:100%;background:var(--accent)}
+.empty{color:var(--muted);padding:16px;text-align:center}
+.card-list{display:grid;gap:8px}
+.card{background:var(--panel2);border-radius:8px;padding:10px;display:grid;gap:6px}
+.card .head{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:4px;background:var(--panel);border:1px solid var(--line);color:var(--muted)}
+@media (max-width:600px){main{padding:10px}.panel{padding:10px}th.opt,td.opt{display:none}header{padding:8px 10px}
+#logTable thead{display:none}#logTable tr{display:block;border-bottom:1px solid var(--line);padding:8px 0}#logTable td{display:block;border:0;padding:2px 0}#logTable td:first-child{color:var(--muted);font-size:12px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Mimiban<small data-i18n="app.subtitle"></small></h1>
+  <nav>
+    <button data-tab="rec" data-i18n="tab.rec"></button>
+    <button data-tab="log" data-i18n="tab.log"></button>
+    <button data-tab="stats" data-i18n="tab.stats"></button>
+    <button data-tab="settings" data-i18n="tab.settings"></button>
+  </nav>
+  <span id="asrPill" class="pill"></span>
+</header>
+<main>
+
+<!-- ================= REC ================= -->
+<section class="tab" id="tab-rec">
+  <div id="recWarnings"></div>
+  <div class="panel">
+    <div class="chips" id="chips"></div>
+    <div class="btns">
+      <button id="btnAddRx" data-i18n="rec.add"></button>
+      <button id="btnStartAll" data-i18n="rec.start_all"></button>
+      <button id="btnStopAll" data-i18n="rec.stop_all"></button>
+      <span class="msg" id="recMsg"></span>
+    </div>
+  </div>
+
+  <div class="panel" id="rxDetail">
+    <div class="empty" id="rxEmpty" data-i18n="rec.empty"></div>
+    <div id="rxBody" class="hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <div class="rxname" style="font-size:16px"><span class="cdot" id="dName_dot"></span><b id="dName"></b> <span class="tag" id="dSource"></span></div>
+        <div class="btns" style="margin:0">
+          <button id="btnRxStart" class="primary" data-i18n="rec.start"></button>
+          <button id="btnRxStop" data-i18n="rec.stop"></button>
+          <button id="btnRxEdit" data-i18n="rec.edit"></button>
+        </div>
+      </div>
+      <div class="meter" id="meter">
+        <div class="bar" id="meterBar"></div>
+        <div class="thr" id="meterThr" data-i18n-title="rec.drag_threshold"></div>
+        <div class="scale"><span>-80</span><span>-60</span><span>-40</span><span>-20</span><span>0 dB</span></div>
+      </div>
+      <div class="readout">
+        <span><span data-i18n="rec.level"></span> <b id="roLevel">-100</b> dB</span>
+        <span><span data-i18n="rec.threshold"></span> <b id="roThr"></b> dB</span>
+        <span><span data-i18n="rec.elapsed"></span> <b id="roElapsed">0.0</b> s</span>
+        <span><span data-i18n="rec.pending"></span> <b id="roPending">0</b></span>
+        <span><span data-i18n="rec.state"></span> <b id="roState"></b></span>
+        <span id="roStreamWrap" class="hidden"><span data-i18n="rec.last_packet"></span> <b id="roLast">-</b></span>
+      </div>
+      <div class="msg err" id="rxError"></div>
+    </div>
+  </div>
+
+  <div class="panel hidden" id="rxForm">
+    <h2 id="rxFormTitle"></h2>
+    <div class="grid">
+      <label><span data-i18n="rx.name"></span><input id="f_name"></label>
+      <label><span data-i18n="rx.source"></span>
+        <select id="f_source_type">
+          <option value="device" data-i18n="rx.source_device"></option>
+          <option value="stream" data-i18n="rx.source_stream"></option>
+          <option value="url" data-i18n="rx.source_url"></option>
+        </select></label>
+      <label><span data-i18n="rx.color"></span><input type="color" id="f_color" value="#3b82f6"></label>
+      <label class="row"><input type="checkbox" id="f_enabled"><span data-i18n="rx.enabled"></span></label>
+    </div>
+    <div id="srcDevice" class="grid" style="margin-top:10px">
+      <label><span data-i18n="rx.device"></span><select id="f_device"></select></label>
+      <label><span data-i18n="rx.device_manual"></span><input id="f_device_name" data-i18n-placeholder="rx.device_manual_ph"></label>
+      <label id="chanWrap"><span data-i18n="rx.channel"></span>
+        <select id="f_channel_select">
+          <option value="mono" data-i18n="rx.ch_mono"></option>
+          <option value="left" data-i18n="rx.ch_left"></option>
+          <option value="right" data-i18n="rx.ch_right"></option>
+        </select></label>
+      <div style="display:flex;align-items:flex-end"><button class="small" id="btnRefreshDev" data-i18n="rx.refresh_devices"></button></div>
+    </div>
+    <div id="srcStream" class="hidden" style="margin-top:10px">
+      <div class="grid">
+        <label><span data-i18n="rx.listen_port"></span><input type="number" id="f_listen_port" min="1" max="65535"></label>
+        <label><span data-i18n="rx.passphrase"></span><input id="f_stream_passphrase" data-i18n-placeholder="rx.passphrase_ph"></label>
+        <label><span data-i18n="rx.host_ip"></span><input id="f_host_ip"></label>
+        <label><span data-i18n="rx.channel"></span>
+          <select id="f_channel_select2">
+            <option value="mono" data-i18n="rx.ch_mono"></option>
+            <option value="left" data-i18n="rx.ch_left"></option>
+            <option value="right" data-i18n="rx.ch_right"></option>
+          </select></label>
+      </div>
+      <p class="muted" data-i18n="rx.agent_help"></p>
+      <pre class="cmd" id="agentCmd"></pre>
+      <button class="small" id="btnCopyCmd" data-i18n="rx.copy"></button> <span class="msg" id="copyMsg"></span>
+    </div>
+    <div id="srcUrl" class="hidden grid" style="margin-top:10px">
+      <label style="grid-column:1/-1"><span data-i18n="rx.input_url"></span><input id="f_input_url" data-i18n-placeholder="rx.input_url_ph"></label>
+      <label><span data-i18n="rx.input_format"></span><input id="f_input_format" data-i18n-placeholder="rx.input_format_ph"></label>
+      <label><span data-i18n="rx.input_rate"></span><input type="number" id="f_input_rate" placeholder="16000"></label>
+      <label><span data-i18n="rx.input_channels"></span><input type="number" id="f_input_channels" placeholder="1"></label>
+      <label><span data-i18n="rx.channel"></span>
+        <select id="f_channel_select3">
+          <option value="mono" data-i18n="rx.ch_mono"></option>
+          <option value="left" data-i18n="rx.ch_left"></option>
+          <option value="right" data-i18n="rx.ch_right"></option>
+        </select></label>
+    </div>
+    <h2 style="margin-top:14px" data-i18n="rx.vox"></h2>
+    <div class="grid">
+      <label><span data-i18n="rx.vox_threshold"></span><input type="number" id="f_vox_threshold_db" step="1"></label>
+      <label><span data-i18n="rx.silence_sec"></span><input type="number" id="f_silence_sec" step="0.1"></label>
+      <label><span data-i18n="rx.prebuffer_sec"></span><input type="number" id="f_prebuffer_sec" step="0.1"></label>
+      <label><span data-i18n="rx.min_call_sec"></span><input type="number" id="f_min_call_sec" step="0.1"></label>
+      <label><span data-i18n="rx.max_call_sec"></span><input type="number" id="f_max_call_sec" step="1"></label>
+    </div>
+    <h2 style="margin-top:14px" data-i18n="rx.asr"></h2>
+    <div class="grid">
+      <label class="row"><input type="checkbox" id="f_asr_enabled"><span data-i18n="rx.asr_enabled"></span></label>
+      <label><span data-i18n="rx.asr_priority"></span><input type="number" id="f_asr_priority" step="1"></label>
+    </div>
+    <div class="btns">
+      <button class="primary" id="btnRxSave" data-i18n="rx.save"></button>
+      <button id="btnRxCancel" data-i18n="common.cancel"></button>
+      <button class="danger" id="btnRxDelete" data-i18n="rx.delete"></button>
+      <span class="msg" id="rxFormMsg"></span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+      <h2 style="margin:0" data-i18n="rec.recent"></h2>
+      <label class="row"><input type="checkbox" id="recentAll"><span data-i18n="rec.recent_all"></span></label>
+    </div>
+    <div id="recentList" class="card-list" style="margin-top:10px"></div>
+  </div>
+</section>
+
+<!-- ================= LOG ================= -->
+<section class="tab" id="tab-log">
+  <div class="panel">
+    <div class="grid">
+      <label><span data-i18n="log.date"></span><input type="date" id="lg_date"></label>
+      <label><span data-i18n="log.receivers"></span><div id="lg_rx" class="chips" style="padding:4px 0"></div></label>
+      <label><span data-i18n="log.keyword"></span><input id="lg_q" data-i18n-placeholder="log.keyword_ph"></label>
+    </div>
+    <div class="btns">
+      <button class="primary" id="btnLogSearch" data-i18n="log.search"></button>
+      <button id="btnLogClear" data-i18n="log.clear"></button>
+      <span class="msg" id="logMsg"></span>
+    </div>
+  </div>
+  <div class="panel">
+    <div style="overflow-x:auto">
+    <table id="logTable">
+      <thead><tr>
+        <th data-i18n="log.col_time"></th><th data-i18n="log.col_rx"></th><th class="opt" data-i18n="log.col_len"></th><th class="opt" data-i18n="log.col_peak"></th><th data-i18n="log.col_text"></th><th data-i18n="log.col_ops"></th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+    </div>
+    <div class="empty hidden" id="logEmpty" data-i18n="log.empty"></div>
+    <div class="pager">
+      <span id="pagerInfo"></span>
+      <button class="small" id="btnPrev">&larr;</button>
+      <button class="small" id="btnNext">&rarr;</button>
+    </div>
+  </div>
+</section>
+
+<!-- ================= STATS ================= -->
+<section class="tab" id="tab-stats">
+  <div class="panel">
+    <div class="btns" style="margin:0">
+      <span class="chips" id="st_days"></span>
+      <select id="st_rx"></select>
+    </div>
+  </div>
+  <div class="kpis" style="margin-bottom:14px">
+    <div class="kpi"><div class="v" id="k_count">0</div><div class="l" data-i18n="stats.count"></div></div>
+    <div class="kpi"><div class="v" id="k_total">0</div><div class="l" data-i18n="stats.total"></div></div>
+    <div class="kpi"><div class="v" id="k_avg">0</div><div class="l" data-i18n="stats.avg"></div></div>
+  </div>
+  <div class="grid wide">
+    <div class="panel"><h2 data-i18n="stats.by_hour"></h2><svg class="chart" id="c_hour"></svg></div>
+    <div class="panel"><h2 data-i18n="stats.by_weekday"></h2><svg class="chart" id="c_wday"></svg></div>
+    <div class="panel"><h2 data-i18n="stats.by_day"></h2><svg class="chart" id="c_day"></svg></div>
+    <div class="panel"><h2 data-i18n="stats.by_receiver"></h2><svg class="chart" id="c_rx"></svg></div>
+  </div>
+  <div class="legend"><span><i style="background:var(--accent)"></i><span data-i18n="stats.legend_count"></span></span><span><i style="background:#a78bfa"></i><span data-i18n="stats.legend_duration"></span></span></div>
+</section>
+
+<!-- ================= SETTINGS ================= -->
+<section class="tab" id="tab-settings">
+  <div class="panel">
+    <h2 data-i18n="set.general"></h2>
+    <div class="grid">
+      <label><span data-i18n="set.ui_language"></span><select id="c_ui_language"><option value="auto" data-i18n="set.lang_auto"></option><option value="ja">日本語</option><option value="en">English</option></select></label>
+      <label><span data-i18n="set.host"></span><input id="c_host"></label>
+      <label><span data-i18n="set.port"></span><input type="number" id="c_port"></label>
+      <label><span data-i18n="set.record_dir"></span><input id="c_record_dir"></label>
+      <label><span data-i18n="set.mp3_bitrate"></span><input id="c_mp3_bitrate"></label>
+      <label><span data-i18n="set.retention_days"></span><input type="number" id="c_retention_days" min="0"></label>
+      <label><span data-i18n="set.ffmpeg_path"></span><input id="c_ffmpeg_path"></label>
+      <label><span data-i18n="set.whisper_server_path"></span><input id="c_whisper_server_path"></label>
+    </div>
+    <p class="muted" data-i18n="set.restart_note"></p>
+    <div id="diskInfo" class="muted"></div>
+  </div>
+
+  <div class="panel">
+    <h2 data-i18n="set.binaries"></h2>
+    <div id="binInfo"></div>
+  </div>
+
+  <div class="panel">
+    <h2 data-i18n="set.asr"></h2>
+    <div class="grid">
+      <label class="row"><input type="checkbox" id="c_asr_enabled"><span data-i18n="set.asr_enabled"></span></label>
+      <label><span data-i18n="set.asr_model"></span><select id="c_asr_model"></select></label>
+      <label><span data-i18n="set.asr_language"></span><input id="c_asr_language" placeholder="ja"></label>
+      <label><span data-i18n="set.asr_threads"></span><input type="number" id="c_asr_threads" min="1"></label>
+      <label><span data-i18n="set.asr_idle_unload_min"></span><input type="number" id="c_asr_idle_unload_min" min="0"></label>
+      <label><span data-i18n="set.no_speech_threshold"></span><input type="number" id="c_no_speech_threshold" step="0.05" min="0" max="1"></label>
+      <label class="row"><input type="checkbox" id="c_asr_vad"><span data-i18n="set.asr_vad"></span></label>
+    </div>
+    <p class="muted" data-i18n="set.asr_vad_note"></p>
+    <label style="margin-top:10px"><span data-i18n="set.asr_prompt"></span><textarea id="c_asr_prompt"></textarea></label>
+    <label style="margin-top:10px"><span data-i18n="set.hallucination_phrases"></span><textarea id="c_hallucination_phrases"></textarea></label>
+    <div class="btns">
+      <span class="pill" id="asrSrvPill"></span>
+      <button class="small" id="btnAsrRestart" data-i18n="set.asr_restart"></button>
+      <button class="small" id="btnTrPending" data-i18n="set.tr_pending"></button>
+      <button class="small" id="btnTrAll" data-i18n="set.tr_all"></button>
+      <span class="msg" id="asrMsg"></span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2 data-i18n="set.models"></h2>
+    <div style="overflow-x:auto"><table id="modelTable"><tbody></tbody></table></div>
+  </div>
+
+  <div class="panel">
+    <h2 data-i18n="set.dictionary"></h2>
+    <table class="dict" id="dictTable"><thead><tr><th data-i18n="set.dict_from"></th><th data-i18n="set.dict_to"></th><th></th></tr></thead><tbody></tbody></table>
+    <div class="btns">
+      <button class="small" id="btnDictAdd" data-i18n="set.dict_add"></button>
+      <button class="small" id="btnDictApply" data-i18n="set.dict_apply"></button>
+      <span class="msg" id="dictMsg"></span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2 data-i18n="set.notify"></h2>
+    <div class="grid">
+      <label class="row"><input type="checkbox" id="c_notify_enabled"><span data-i18n="set.notify_enabled"></span></label>
+      <label><span data-i18n="set.notify_rate"></span><input type="number" id="c_notify_rate" min="1"></label>
+      <label><span data-i18n="set.notify_min_duration"></span><input type="number" id="c_notify_min_duration" step="0.1" min="0"></label>
+      <label><span data-i18n="set.notify_base_url"></span><input id="c_notify_base_url" placeholder="http://100.x.y.z:8000"></label>
+      <label><span data-i18n="set.notify_language"></span><select id="c_notify_language"><option value="" data-i18n="set.notify_lang_follow"></option><option value="ja">日本語</option><option value="en">English</option></select></label>
+    </div>
+    <h2 style="margin-top:14px" data-i18n="set.webhooks"></h2>
+    <div id="whList" class="card-list"></div>
+    <div class="btns"><button class="small" id="btnWhAdd" data-i18n="set.wh_add"></button></div>
+    <div id="whForm" class="hidden" style="margin-top:10px;border-top:1px solid var(--line);padding-top:10px">
+      <div class="grid">
+        <label><span data-i18n="wh.name"></span><input id="w_name"></label>
+        <label><span data-i18n="wh.type"></span><select id="w_type"><option value="discord">Discord</option><option value="generic_json">generic_json</option></select></label>
+        <label style="grid-column:1/-1"><span data-i18n="wh.url"></span><input id="w_url" placeholder="https://discord.com/api/webhooks/…"></label>
+        <label><span data-i18n="wh.timing"></span><select id="w_timing"><option value="on_call" data-i18n="wh.timing_on_call"></option><option value="on_transcript" data-i18n="wh.timing_on_transcript"></option><option value="both" data-i18n="wh.timing_both"></option></select></label>
+        <label><span data-i18n="wh.keyword_mode"></span><select id="w_keyword_mode"><option value="any" data-i18n="wh.kw_any"></option><option value="exclude" data-i18n="wh.kw_exclude"></option></select></label>
+        <label><span data-i18n="wh.keywords"></span><input id="w_keywords" data-i18n-placeholder="wh.keywords_ph"></label>
+        <label><span data-i18n="wh.mention"></span><input id="w_mention" placeholder="@here"></label>
+        <label class="row"><input type="checkbox" id="w_attach_audio"><span data-i18n="wh.attach_audio"></span></label>
+        <label class="row"><input type="checkbox" id="w_enabled"><span data-i18n="wh.enabled"></span></label>
+      </div>
+      <label style="margin-top:8px"><span data-i18n="wh.receivers"></span><div id="w_receivers" class="chips" style="padding:4px 0"></div></label>
+      <div class="msg warn" id="whKwWarn"></div>
+      <div class="btns">
+        <button class="primary" id="btnWhSave" data-i18n="common.save"></button>
+        <button id="btnWhTest" data-i18n="wh.test"></button>
+        <button id="btnWhCancel" data-i18n="common.cancel"></button>
+        <button class="danger" id="btnWhDelete" data-i18n="common.delete"></button>
+        <span class="msg" id="whMsg"></span>
+      </div>
+    </div>
+    <h2 style="margin-top:14px" data-i18n="set.notify_log"></h2>
+    <div style="overflow-x:auto"><table id="nlogTable"><thead><tr><th data-i18n="nlog.time"></th><th data-i18n="nlog.webhook"></th><th data-i18n="nlog.call"></th><th data-i18n="nlog.status"></th><th data-i18n="nlog.error"></th></tr></thead><tbody></tbody></table></div>
+  </div>
+
+  <div class="panel">
+    <div class="btns" style="margin:0">
+      <button class="primary" id="btnCfgSave" data-i18n="set.save"></button>
+      <span class="msg" id="cfgMsg"></span>
+    </div>
+  </div>
+</section>
+</main>
+
+<script>
+'use strict';
+/* ---------- i18n ---------- */
+let DICT = {}, LANG = 'en';
+const missing = new Set();
+function t(key, params) {
+  let s = DICT[key];
+  if (s === undefined) { if (!missing.has(key)) { missing.add(key); console.warn('i18n missing:', key); } s = key; }
+  if (params) for (const k in params) s = s.replaceAll('{' + k + '}', String(params[k]));
+  return s;
+}
+function applyI18n(root) {
+  (root || document).querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  (root || document).querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+  (root || document).querySelectorAll('[data-i18n-title]').forEach(el => { el.title = t(el.dataset.i18nTitle); });
+}
+async function loadLang(pref) {
+  let lang = pref && pref !== 'auto' ? pref : (navigator.language || 'en').slice(0, 2);
+  const avail = ['ja', 'en'];
+  if (!avail.includes(lang)) lang = 'en';
+  try {
+    const r = await fetch('locales/' + lang + '.json'); DICT = await r.json();
+  } catch (e) { const r = await fetch('locales/en.json'); DICT = await r.json(); lang = 'en'; }
+  LANG = lang; document.documentElement.lang = lang;
+  applyI18n();
+}
+const fmtTime = { get f() { return new Intl.DateTimeFormat(LANG, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }); } };
+const fmtDateTime = { get f() { return new Intl.DateTimeFormat(LANG, { dateStyle: 'medium', timeStyle: 'medium' }); } };
+const fmtNum1 = { get f() { return new Intl.NumberFormat(LANG, { maximumFractionDigits: 1 }); } };
+const fmtNum0 = { get f() { return new Intl.NumberFormat(LANG, { maximumFractionDigits: 0 }); } };
+function weekdayName(i) { const d = new Date(2023, 0, 1 + i); return new Intl.DateTimeFormat(LANG, { weekday: 'short' }).format(d); }
+function fmtDur(sec) { if (sec >= 3600) return fmtNum1.f.format(sec / 3600) + ' ' + t('unit.h'); if (sec >= 60) return fmtNum1.f.format(sec / 60) + ' ' + t('unit.min'); return fmtNum1.f.format(sec) + ' ' + t('unit.s'); }
+function ts(s) { const d = new Date(s); return isNaN(d) ? s : fmtTime.f.format(d); }
+function tsFull(s) { const d = new Date(s); return isNaN(d) ? s : fmtDateTime.f.format(d); }
+
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+async function api(method, path, body) {
+  const r = await fetch(path, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  let j = null; try { j = await r.json(); } catch (e) { }
+  if (!r.ok) throw new Error((j && j.error) || ('http_' + r.status));
+  return j;
+}
+function errText(e) { const k = 'err.' + e.message; return DICT[k] ? t(k) : e.message; }
+function flash(el, text, cls) { el.textContent = text; el.className = 'msg ' + (cls || ''); if (text) setTimeout(() => { if (el.textContent === text) { el.textContent = ''; el.className = 'msg'; } }, 4000); }
+function el(tag, attrs, ...kids) { const e = document.createElement(tag); for (const k in attrs || {}) { if (k === 'class') e.className = attrs[k]; else if (k.startsWith('on')) e.addEventListener(k.slice(2), attrs[k]); else if (k === 'style') e.style.cssText = attrs[k]; else e.setAttribute(k, attrs[k]); } for (const kid of kids) if (kid != null) e.append(kid.nodeType ? kid : document.createTextNode(kid)); return e; }
+
+/* ---------- state ---------- */
+let receivers = [], devices = [], status = null, cfg = null, network = null, models = [], webhooks = [];
+let selectedRx = null, editingRx = null, editingWh = null, highlightCall = null;
+let tab = 'rec';
+
+/* ---------- tabs / routing ---------- */
+function showTab(name) {
+  tab = name;
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('section.tab').forEach(s => s.classList.toggle('active', s.id === 'tab-' + name));
+  if (name === 'log') loadCalls();
+  if (name === 'stats') loadStats();
+  if (name === 'settings') loadSettings();
+  if (!location.hash.startsWith('#/calls/')) history.replaceState(null, '', '#/' + name);
+}
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => { history.replaceState(null, '', '#/' + b.dataset.tab); showTab(b.dataset.tab); });
+function route() {
+  const h = location.hash;
+  const m = h.match(/^#\/calls\/(\d+)/);
+  if (m) { highlightCall = +m[1]; showTab('log'); return; }
+  const m2 = h.match(/^#\/(rec|log|stats|settings)/);
+  showTab(m2 ? m2[1] : 'rec');
+}
+window.addEventListener('hashchange', route);
+
+/* ---------- receivers (rec tab) ---------- */
+async function loadReceivers() {
+  receivers = await api('GET', '/api/receivers');
+  if (!selectedRx && receivers.length) selectedRx = receivers[0].id;
+  if (selectedRx && !receivers.find(r => r.id === selectedRx)) selectedRx = receivers.length ? receivers[0].id : null;
+  renderChips(); renderDetail(); renderLogRxFilter(); renderStatsRx();
+}
+function stateOf(id) { return (status && status.receivers[id]) || { state: 'stopped', level_db: -100, call_elapsed: 0, pending: 0, error: '' }; }
+function renderChips() {
+  const c = $('chips'); c.innerHTML = '';
+  if (!receivers.length) { c.append(el('span', { class: 'muted' }, t('rec.no_receivers'))); }
+  for (const r of receivers) {
+    const st = stateOf(r.id);
+    const chip = el('div', { class: 'chip' + (r.id === selectedRx ? ' active' : ''), onclick: () => { selectedRx = r.id; hideRxForm(); renderChips(); renderDetail(); recentSig = ''; loadRecent(); } },
+      el('span', { class: 'cdot', style: 'background:' + r.color }), r.name, el('span', { class: 'sdot ' + st.state, title: t('state.' + st.state) }));
+    chip.dataset.id = r.id;
+    c.append(chip);
+  }
+}
+function updateChipDots() {
+  document.querySelectorAll('#chips .chip').forEach(chip => { const st = stateOf(chip.dataset.id); const d = chip.querySelector('.sdot'); d.className = 'sdot ' + st.state; d.title = t('state.' + st.state); });
+}
+function renderDetail() {
+  const r = receivers.find(x => x.id === selectedRx);
+  $('rxEmpty').classList.toggle('hidden', !!r); $('rxBody').classList.toggle('hidden', !r);
+  if (!r) return;
+  $('dName').textContent = r.name; $('dName_dot').style.background = r.color;
+  let src = t('rx.source_' + r.source_type);
+  if (r.source_type === 'device') src += ': ' + r.device_name + (r.channel_select !== 'mono' ? ' [' + t('rx.ch_' + r.channel_select) + ']' : '');
+  if (r.source_type === 'stream') src += ': ' + t('rx.port') + ' ' + r.listen_port;
+  if (r.source_type === 'url') src += ': ' + r.input_url;
+  $('dSource').textContent = src;
+  $('roThr').textContent = r.vox_threshold_db;
+  $('roStreamWrap').classList.toggle('hidden', r.source_type === 'device');
+  updateDetailLive();
+}
+function updateDetailLive() {
+  const r = receivers.find(x => x.id === selectedRx); if (!r) return;
+  const st = stateOf(r.id);
+  const pct = Math.max(0, Math.min(100, (st.level_db + 80) / 80 * 100));
+  $('meterBar').style.width = (st.state === 'stopped' ? 0 : pct) + '%';
+  if (!dragging) $('meterThr').style.left = 'calc(' + Math.max(0, Math.min(100, (r.vox_threshold_db + 80) / 80 * 100)) + '% - 1px)';
+  $('roLevel').textContent = st.state === 'stopped' ? '-' : fmtNum1.f.format(st.level_db);
+  $('roElapsed').textContent = fmtNum1.f.format(st.call_elapsed || 0);
+  $('roPending').textContent = st.pending || 0;
+  $('roState').textContent = t('state.' + st.state);
+  $('roLast').textContent = st.last_packet_at ? ts(st.last_packet_at) : '-';
+  $('rxError').textContent = st.state === 'error' ? (DICT['err.' + st.error] ? t('err.' + st.error) : st.error) : '';
+  const running = st.state !== 'stopped';
+  $('btnRxStart').disabled = running; $('btnRxStop').disabled = !running;
+}
+$('btnRxStart').onclick = async () => { try { await api('POST', '/api/receivers/' + selectedRx + '/start'); flash($('recMsg'), t('msg.started'), 'ok'); } catch (e) { flash($('recMsg'), errText(e), 'err'); } };
+$('btnRxStop').onclick = async () => { try { await api('POST', '/api/receivers/' + selectedRx + '/stop'); flash($('recMsg'), t('msg.stopped'), 'ok'); } catch (e) { flash($('recMsg'), errText(e), 'err'); } };
+$('btnStartAll').onclick = async () => { try { await api('POST', '/api/receivers/start_all'); flash($('recMsg'), t('msg.started'), 'ok'); } catch (e) { flash($('recMsg'), errText(e), 'err'); } };
+$('btnStopAll').onclick = async () => { try { await api('POST', '/api/receivers/stop_all'); flash($('recMsg'), t('msg.stopped'), 'ok'); } catch (e) { flash($('recMsg'), errText(e), 'err'); } };
+
+/* threshold drag */
+let dragging = false, dragVal = null, dragTimer = null;
+const meter = $('meter');
+function dbFromEvent(ev) { const rect = meter.getBoundingClientRect(); const x = Math.max(0, Math.min(rect.width, ev.clientX - rect.left)); return Math.round(x / rect.width * 80 - 80); }
+meter.addEventListener('pointerdown', ev => { if (!selectedRx) return; dragging = true; meter.setPointerCapture(ev.pointerId); dragMove(ev); });
+meter.addEventListener('pointermove', ev => { if (dragging) dragMove(ev); });
+meter.addEventListener('pointerup', ev => { if (!dragging) return; dragging = false; commitThreshold(); });
+meter.addEventListener('pointercancel', () => { dragging = false; });
+function dragMove(ev) {
+  dragVal = dbFromEvent(ev);
+  $('meterThr').style.left = 'calc(' + ((dragVal + 80) / 80 * 100) + '% - 1px)';
+  $('roThr').textContent = dragVal;
+  clearTimeout(dragTimer); dragTimer = setTimeout(commitThreshold, 250);
+}
+async function commitThreshold() {
+  clearTimeout(dragTimer);
+  const r = receivers.find(x => x.id === selectedRx); if (!r || dragVal === null || r.vox_threshold_db === dragVal) return;
+  r.vox_threshold_db = dragVal;
+  try { await api('PUT', '/api/receivers/' + r.id, { vox_threshold_db: dragVal }); } catch (e) { flash($('recMsg'), errText(e), 'err'); }
+}
+
+/* receiver form */
+$('btnAddRx').onclick = () => openRxForm(null);
+$('btnRxEdit').onclick = () => { const r = receivers.find(x => x.id === selectedRx); if (r) openRxForm(r); };
+$('btnRxCancel').onclick = hideRxForm;
+function hideRxForm() { $('rxForm').classList.add('hidden'); editingRx = null; }
+function fv(id) { return $(id).value; }
+function openRxForm(r) {
+  editingRx = r ? r.id : 'new';
+  const d = r || { name: '', source_type: 'device', device_name: '', channel_select: 'mono', enabled: true, color: '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0'), vox_threshold_db: -35, silence_sec: 1.5, prebuffer_sec: 0.5, min_call_sec: 0.7, max_call_sec: 120, asr_enabled: true, asr_priority: 0, listen_port: nextFreePort(), stream_passphrase: '', input_url: '', input_format: '', input_rate: 0, input_channels: 0 };
+  $('rxFormTitle').textContent = r ? t('rx.edit_title') : t('rx.new_title');
+  $('f_name').value = d.name; $('f_source_type').value = d.source_type; $('f_color').value = d.color; $('f_enabled').checked = !!d.enabled;
+  $('f_device_name').value = d.device_name || '';
+  ['f_channel_select', 'f_channel_select2', 'f_channel_select3'].forEach(id => $(id).value = d.channel_select || 'mono');
+  $('f_listen_port').value = d.listen_port || ''; $('f_stream_passphrase').value = d.stream_passphrase || '';
+  $('f_host_ip').value = (network && (network.tailscale_ip || (network.lan_ips || [])[0])) || '';
+  $('f_input_url').value = d.input_url || ''; $('f_input_format').value = d.input_format || ''; $('f_input_rate').value = d.input_rate || ''; $('f_input_channels').value = d.input_channels || '';
+  $('f_vox_threshold_db').value = d.vox_threshold_db; $('f_silence_sec').value = d.silence_sec; $('f_prebuffer_sec').value = d.prebuffer_sec; $('f_min_call_sec').value = d.min_call_sec; $('f_max_call_sec').value = d.max_call_sec;
+  $('f_asr_enabled').checked = !!d.asr_enabled; $('f_asr_priority').value = d.asr_priority;
+  $('btnRxDelete').classList.toggle('hidden', !r);
+  renderDeviceOptions(d.device_name);
+  updateSourceUI();
+  $('rxForm').classList.remove('hidden'); $('rxForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function nextFreePort() { const used = new Set([(cfg && cfg.port) || 8000, ...receivers.map(r => r.listen_port)]); let p = 5004; while (used.has(p)) p++; return p; }
+function renderDeviceOptions(current) {
+  const sel = $('f_device'); sel.innerHTML = '';
+  sel.append(el('option', { value: '' }, t('rx.device_select')));
+  const editId = editingRx === 'new' ? null : editingRx;
+  for (const d of devices) {
+    const used = receivers.filter(r => r.source_type === 'device' && r.device_name === d.name && r.id !== editId).map(r => r.channel_select);
+    let tag = '';
+    if (used.includes('mono')) tag = ' (' + t('rx.in_use') + ')';
+    else if (used.length) tag = ' (' + used.map(u => t('rx.in_use_' + u)).join(', ') + ')';
+    const o = el('option', { value: d.name }, '[' + d.index + '] ' + d.name + tag);
+    if (used.includes('mono')) o.disabled = true;
+    sel.append(o);
+  }
+  sel.value = current && devices.find(d => d.name === current) ? current : '';
+  if (current && !sel.value) $('f_device_name').value = current;
+  updateChannelOptions();
+}
+function updateChannelOptions() {
+  const name = $('f_device').value || $('f_device_name').value;
+  const editId = editingRx === 'new' ? null : editingRx;
+  const used = receivers.filter(r => r.source_type === 'device' && r.device_name === name && r.id !== editId).map(r => r.channel_select);
+  const sel = $('f_channel_select');
+  for (const o of sel.options) { o.disabled = (o.value === 'mono' && used.length > 0) || used.includes(o.value); }
+  if (sel.selectedOptions[0] && sel.selectedOptions[0].disabled) { const free = [...sel.options].find(o => !o.disabled); if (free) sel.value = free.value; }
+  const dev = devices.find(d => d.name === name);
+  $('chanWrap').classList.toggle('hidden', !!dev && dev.channels === 1);
+}
+$('f_device').onchange = () => { if ($('f_device').value) $('f_device_name').value = ''; updateChannelOptions(); };
+$('f_device_name').oninput = () => { if ($('f_device_name').value) $('f_device').value = ''; updateChannelOptions(); };
+$('f_source_type').onchange = updateSourceUI;
+['f_listen_port', 'f_stream_passphrase', 'f_host_ip', 'f_channel_select2'].forEach(id => $(id).oninput = renderAgentCmd);
+function updateSourceUI() {
+  const s = $('f_source_type').value;
+  $('srcDevice').classList.toggle('hidden', s !== 'device'); $('srcStream').classList.toggle('hidden', s !== 'stream'); $('srcUrl').classList.toggle('hidden', s !== 'url');
+  if (s === 'stream') renderAgentCmd();
+}
+function renderAgentCmd() {
+  const host = $('f_host_ip').value || '<host-ip>'; const port = $('f_listen_port').value || '<port>';
+  const ch = $('f_channel_select2').value !== 'mono' ? ' --channels 2' : '';
+  const pp = $('f_stream_passphrase').value ? ' --passphrase "' + $('f_stream_passphrase').value + '"' : '';
+  $('agentCmd').textContent = 'mimiban agent --device "' + t('rx.agent_device_ph') + '"' + ch + ' --to ' + host + ':' + port + pp;
+}
+$('btnCopyCmd').onclick = async () => { try { await navigator.clipboard.writeText($('agentCmd').textContent); flash($('copyMsg'), t('msg.copied'), 'ok'); } catch (e) { flash($('copyMsg'), t('msg.copy_failed'), 'err'); } };
+$('btnRefreshDev').onclick = async () => { devices = await api('POST', '/api/devices/refresh'); renderDeviceOptions($('f_device').value || $('f_device_name').value); };
+$('btnRxSave').onclick = async () => {
+  const st = $('f_source_type').value;
+  const chSel = st === 'device' ? 'f_channel_select' : st === 'stream' ? 'f_channel_select2' : 'f_channel_select3';
+  const body = {
+    name: fv('f_name').trim(), source_type: st, color: fv('f_color'), enabled: $('f_enabled').checked,
+    device_name: $('f_device').value || fv('f_device_name').trim(), channel_select: $(chSel).value,
+    listen_port: +fv('f_listen_port') || 0, stream_passphrase: fv('f_stream_passphrase'),
+    input_url: fv('f_input_url').trim(), input_format: fv('f_input_format').trim(), input_rate: +fv('f_input_rate') || 0, input_channels: +fv('f_input_channels') || 0,
+    vox_threshold_db: +fv('f_vox_threshold_db'), silence_sec: +fv('f_silence_sec'), prebuffer_sec: +fv('f_prebuffer_sec'), min_call_sec: +fv('f_min_call_sec'), max_call_sec: +fv('f_max_call_sec'),
+    asr_enabled: $('f_asr_enabled').checked, asr_priority: +fv('f_asr_priority') || 0,
+  };
+  const d = devices.find(x => x.name === body.device_name); if (d) body.device_index = d.index;
+  try {
+    const r = editingRx === 'new' ? await api('POST', '/api/receivers', body) : await api('PUT', '/api/receivers/' + editingRx, body);
+    selectedRx = r.id; hideRxForm(); await loadReceivers(); flash($('recMsg'), t('msg.saved'), 'ok');
+  } catch (e) { flash($('rxFormMsg'), errText(e), 'err'); }
+};
+$('btnRxDelete').onclick = async () => {
+  if (!confirm(t('rx.delete_confirm'))) return;
+  try { await api('DELETE', '/api/receivers/' + editingRx); hideRxForm(); selectedRx = null; await loadReceivers(); } catch (e) { flash($('rxFormMsg'), errText(e), 'err'); }
+};
+
+/* recent */
+$('recentAll').onchange = () => { recentSig = ''; loadRecent(); };
+async function loadRecent() {
+  if (tab !== 'rec') return;
+  const q = $('recentAll').checked || !selectedRx ? '' : '&receiver_id=' + selectedRx;
+  try {
+    const r = await api('GET', '/api/calls?limit=8' + q);
+    const list = $('recentList');
+    // Never rebuild while something is playing: that would destroy the <audio>.
+    if ([...list.querySelectorAll('audio')].some(a => !a.paused)) return;
+    const sig = q + JSON.stringify(r.items.map(c => [c.id, c.asr_status, c.transcript, c.asr_note]));
+    if (sig === recentSig) return;
+    recentSig = sig;
+    list.innerHTML = '';
+    if (!r.items.length) { list.append(el('div', { class: 'empty' }, t('rec.recent_empty'))); return; }
+    for (const c of r.items) list.append(callCard(c));
+  } catch (e) { }
+}
+let recentSig = '';
+function rxLabel(c) { const r = receivers.find(x => x.id === c.receiver_id); return el('span', { class: 'rxname' }, el('span', { class: 'cdot', style: 'background:' + (r ? r.color : '#666') }), r ? r.name : c.channel); }
+function txNode(c) {
+  const st = c.asr_status;
+  if (st === 'done') { if (c.transcript) return el('div', { class: 'tx' }, c.transcript); return el('div', { class: 'tx empty' }, c.asr_note ? t('tx.empty_' + c.asr_note) : t('tx.empty')); }
+  if (st === 'error') return el('div', { class: 'tx error' }, t('tx.error') + (c.asr_error ? ': ' + c.asr_error : ''));
+  return el('div', { class: 'tx ' + st }, t('tx.' + st));
+}
+function callCard(c) {
+  return el('div', { class: 'card' },
+    el('div', { class: 'head' }, el('span', {}, tsFull(c.started_at)), rxLabel(c), el('span', {}, fmtDur(c.duration) + (c.peak_db != null ? ' / ' + fmtNum1.f.format(c.peak_db) + ' dB' : ''))),
+    txNode(c),
+    el('audio', { controls: '', preload: 'none', src: '/api/calls/' + c.id + '/audio', style: 'width:100%;height:32px',
+      onplay: ev => { document.querySelectorAll('audio').forEach(a => { if (a !== ev.target) a.pause(); }); }, onended: loadRecent }));
+}
+
+/* ---------- warnings / status polling ---------- */
+function renderWarnings() {
+  const w = $('recWarnings'); w.innerHTML = '';
+  if (!status) return;
+  if (!status.ffmpeg.found) w.append(el('div', { class: 'err-box' }, t('warn.no_ffmpeg')));
+  if (status.asr.enabled && !status.whisper_server.found) w.append(el('div', { class: 'warn-box' }, t('warn.no_whisper')));
+  else if (status.asr.enabled && status.asr.server.state === 'error' && status.asr.server.last_error === 'model_not_found') w.append(el('div', { class: 'warn-box' }, t('warn.no_model')));
+}
+let lastWarnKey = '';
+async function poll() {
+  try {
+    status = await api('GET', '/api/status');
+    const a = status.asr; const pill = $('asrPill');
+    let txt, cls = '';
+    if (!a.enabled) { txt = t('asr.disabled'); }
+    else if (!status.whisper_server.found) { txt = t('asr.no_server'); cls = 'warn'; }
+    else { txt = t('asr.state_' + a.server.state) + (a.pending_total ? ' · ' + t('asr.queue', { n: a.pending_total }) : ''); cls = a.server.state === 'ready' ? 'ok' : a.server.state === 'error' ? 'err' : ''; }
+    if (a.server.gpu) txt += ' · GPU';
+    pill.textContent = txt; pill.className = 'pill ' + cls;
+    const wk = [status.ffmpeg.found, status.whisper_server.found, a.server.last_error].join('|');
+    if (wk !== lastWarnKey) { lastWarnKey = wk; renderWarnings(); }
+    updateChipDots(); updateDetailLive();
+  } catch (e) { $('asrPill').textContent = t('msg.offline'); $('asrPill').className = 'pill err'; }
+}
+
+/* ---------- LOG tab ---------- */
+let logOffset = 0, logRxSel = new Set();
+function renderLogRxFilter() {
+  const c = $('lg_rx'); c.innerHTML = '';
+  for (const r of receivers) {
+    const chip = el('div', { class: 'chip' + (logRxSel.has(r.id) ? ' active' : ''), onclick: () => { logRxSel.has(r.id) ? logRxSel.delete(r.id) : logRxSel.add(r.id); renderLogRxFilter(); } }, el('span', { class: 'cdot', style: 'background:' + r.color }), r.name);
+    c.append(chip);
+  }
+}
+$('btnLogSearch').onclick = () => { logOffset = 0; loadCalls(); };
+$('btnLogClear').onclick = () => { $('lg_date').value = ''; $('lg_q').value = ''; logRxSel.clear(); renderLogRxFilter(); logOffset = 0; loadCalls(); };
+$('lg_q').onkeydown = e => { if (e.key === 'Enter') { logOffset = 0; loadCalls(); } };
+$('btnPrev').onclick = () => { logOffset = Math.max(0, logOffset - 50); loadCalls(); };
+$('btnNext').onclick = () => { logOffset += 50; loadCalls(); };
+async function loadCalls() {
+  const p = new URLSearchParams({ limit: 50, offset: logOffset });
+  if ($('lg_date').value) p.set('date', $('lg_date').value);
+  if ($('lg_q').value.trim()) p.set('q', $('lg_q').value.trim());
+  if (logRxSel.size) p.set('receiver_id', [...logRxSel].join(','));
+  let hl = null;
+  if (highlightCall) { hl = highlightCall; highlightCall = null; }
+  try {
+    let r = await api('GET', '/api/calls?' + p);
+    const tb = $('logTable').querySelector('tbody'); tb.innerHTML = '';
+    if (hl) {
+      // put the highlighted call first if it is not on this page
+      try { const c = await api('GET', '/api/calls/' + hl); if (!r.items.find(x => x.id === hl)) r.items.unshift(c); } catch (e) { }
+    }
+    $('logEmpty').classList.toggle('hidden', r.items.length > 0);
+    for (const c of r.items) tb.append(callRow(c, c.id === hl));
+    $('pagerInfo').textContent = t('log.pager', { from: r.total ? logOffset + 1 : 0, to: Math.min(r.total, logOffset + r.items.length), total: r.total });
+    $('btnPrev').disabled = logOffset === 0; $('btnNext').disabled = logOffset + 50 >= r.total;
+    if (hl) { const row = tb.querySelector('tr.hl'); if (row) row.scrollIntoView({ block: 'center' }); }
+  } catch (e) { flash($('logMsg'), errText(e), 'err'); }
+}
+function callRow(c, hl) {
+  const tr = el('tr', { class: hl ? 'hl' : '' });
+  tr.dataset.id = c.id;
+  const ops = el('div', { class: 'ops' });
+  const audio = el('audio', { preload: 'none', src: '/api/calls/' + c.id + '/audio' });
+  const bPlay = el('button', { class: 'small', onclick: () => { if (audio.paused) { document.querySelectorAll('audio').forEach(a => a.pause()); audio.play(); bPlay.textContent = t('log.pause'); } else { audio.pause(); bPlay.textContent = t('log.play'); } } }, t('log.play'));
+  audio.onended = () => bPlay.textContent = t('log.play'); audio.onpause = () => bPlay.textContent = t('log.play');
+  const bDl = el('a', { href: '/api/calls/' + c.id + '/audio?download=1', download: '' }, el('button', { class: 'small' }, t('log.download')));
+  const bEdit = el('button', { class: 'small', onclick: () => editTranscript(c, tr) }, t('log.edit'));
+  const bRe = el('button', { class: 'small', onclick: async () => { try { await api('POST', '/api/calls/' + c.id + '/transcribe'); flash($('logMsg'), t('msg.queued'), 'ok'); setTimeout(loadCalls, 800); } catch (e) { flash($('logMsg'), errText(e), 'err'); } } }, t('log.retranscribe'));
+  const bDel = el('button', { class: 'small danger', onclick: async () => { if (!confirm(t('log.delete_confirm'))) return; try { await api('DELETE', '/api/calls/' + c.id); tr.remove(); } catch (e) { flash($('logMsg'), errText(e), 'err'); } } }, t('log.delete'));
+  ops.append(bPlay, bDl, bEdit, bRe, bDel, audio);
+  tr.append(
+    el('td', { style: 'white-space:nowrap' }, ts(c.started_at)),
+    el('td', {}, rxLabel(c)),
+    el('td', { class: 'opt', style: 'white-space:nowrap' }, fmtDur(c.duration)),
+    el('td', { class: 'opt', style: 'white-space:nowrap' }, c.peak_db != null ? fmtNum1.f.format(c.peak_db) : '-'),
+    el('td', { class: 'txcell' }, txNode(c)),
+    el('td', {}, ops));
+  return tr;
+}
+function editTranscript(c, tr) {
+  const cell = tr.querySelector('.txcell'); cell.innerHTML = '';
+  const ta = el('textarea', {}, c.transcript || '');
+  const save = el('button', { class: 'small primary', onclick: async () => { try { const u = await api('PUT', '/api/calls/' + c.id + '/transcript', { transcript: ta.value }); Object.assign(c, u); cell.innerHTML = ''; cell.append(txNode(c)); } catch (e) { flash($('logMsg'), errText(e), 'err'); } } }, t('common.save'));
+  const cancel = el('button', { class: 'small', onclick: () => { cell.innerHTML = ''; cell.append(txNode(c)); } }, t('common.cancel'));
+  cell.append(ta, el('div', { class: 'btns', style: 'margin-top:4px' }, save, cancel));
+  ta.focus();
+}
+
+/* ---------- STATS tab ---------- */
+let statDays = 7, statRx = '';
+function renderStatsRx() {
+  const s = $('st_rx'); const cur = s.value; s.innerHTML = '';
+  s.append(el('option', { value: '' }, t('stats.all_receivers')));
+  for (const r of receivers) s.append(el('option', { value: r.id }, r.name));
+  s.value = cur;
+}
+function renderDayChips() {
+  const c = $('st_days'); c.innerHTML = '';
+  for (const d of [7, 30, 90, 365]) c.append(el('div', { class: 'chip' + (d === statDays ? ' active' : ''), onclick: () => { statDays = d; loadStats(); } }, t('stats.days', { n: d })));
+}
+$('st_rx').onchange = () => { statRx = $('st_rx').value; loadStats(); };
+async function loadStats() {
+  renderDayChips();
+  try {
+    const s = await api('GET', '/api/stats?days=' + statDays + (statRx ? '&receiver_id=' + statRx : ''));
+    $('k_count').textContent = fmtNum0.f.format(s.count); $('k_total').textContent = fmtDur(s.total_duration); $('k_avg').textContent = fmtDur(s.avg_duration);
+    barChart($('c_hour'), s.by_hour, b => b.key);
+    barChart($('c_wday'), s.by_weekday, b => weekdayName(+b.key));
+    barChart($('c_day'), s.by_day, (b, i, n) => (n <= 14 || i % Math.ceil(n / 12) === 0) ? new Intl.DateTimeFormat(LANG, { month: 'numeric', day: 'numeric' }).format(new Date(b.key + 'T00:00:00')) : '');
+    barChart($('c_rx'), s.by_receiver, b => { const r = receivers.find(x => x.id === b.key); return r ? r.name : b.key; }, b => { const r = receivers.find(x => x.id === b.key); return r ? r.color : null; });
+  } catch (e) { }
+}
+function barChart(svg, buckets, labelFn, colorFn) {
+  const W = 600, H = 180, padL = 30, padB = 22, padT = 8;
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.innerHTML = '';
+  const n = buckets.length; if (!n) return;
+  const maxC = Math.max(1, ...buckets.map(b => b.count)); const maxD = Math.max(1, ...buckets.map(b => b.duration));
+  const bw = (W - padL) / n; const ih = H - padB - padT;
+  const ns = 'http://www.w3.org/2000/svg';
+  const mk = (tag, attrs) => { const e = document.createElementNS(ns, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+  for (let i = 0; i <= 2; i++) { const y = padT + ih - ih * i / 2; svg.append(mk('line', { x1: padL, x2: W, y1: y, y2: y, stroke: '#2a2f3a' })); const tx = mk('text', { x: 0, y: y + 3 }); tx.textContent = fmtNum0.f.format(maxC * i / 2); svg.append(tx); }
+  buckets.forEach((b, i) => {
+    const x = padL + i * bw; const hc = ih * b.count / maxC; const hd = ih * b.duration / maxD;
+    const r1 = mk('rect', { x: x + bw * 0.1, y: padT + ih - hc, width: bw * 0.4, height: hc, rx: 1 }); if (colorFn && colorFn(b)) r1.style.fill = colorFn(b);
+    const r2 = mk('rect', { x: x + bw * 0.5, y: padT + ih - hd, width: bw * 0.4, height: hd, rx: 1, class: 'dur' });
+    r1.append(mk('title', {})); r1.firstChild.textContent = labelFn(b, i, n) + ': ' + t('stats.tip', { count: b.count, dur: fmtDur(b.duration) });
+    r2.append(mk('title', {})); r2.firstChild.textContent = labelFn(b, i, n) + ': ' + t('stats.tip', { count: b.count, dur: fmtDur(b.duration) });
+    svg.append(r1, r2);
+    const lbl = labelFn(b, i, n);
+    if (lbl && (n <= 31 || i % Math.ceil(n / 15) === 0)) { const tx = mk('text', { x: x + bw / 2, y: H - 6, 'text-anchor': 'middle' }); tx.textContent = lbl.length > 8 ? lbl.slice(0, 7) + '…' : lbl; svg.append(tx); }
+  });
+}
+
+/* ---------- SETTINGS tab ---------- */
+async function loadSettings() {
+  try {
+    [cfg, models, webhooks, network] = await Promise.all([api('GET', '/api/config'), api('GET', '/api/models'), api('GET', '/api/webhooks'), api('GET', '/api/network')]);
+    fillConfig(); renderModels(); renderDict(); renderWebhooks(); loadNotifyLog(); loadDisk(); renderBins();
+  } catch (e) { flash($('cfgMsg'), errText(e), 'err'); }
+}
+function fillConfig() {
+  const c = cfg;
+  $('c_ui_language').value = c.ui_language || 'auto'; $('c_host').value = c.host; $('c_port').value = c.port; $('c_record_dir').value = c.record_dir; $('c_mp3_bitrate').value = c.mp3_bitrate;
+  $('c_retention_days').value = c.retention_days; $('c_ffmpeg_path').value = c.ffmpeg_path || ''; $('c_whisper_server_path').value = c.whisper_server_path || '';
+  $('c_asr_enabled').checked = c.asr_enabled; $('c_asr_language').value = c.asr_language; $('c_asr_threads').value = c.asr_threads; $('c_asr_idle_unload_min').value = c.asr_idle_unload_min;
+  $('c_no_speech_threshold').value = c.no_speech_threshold; $('c_asr_prompt').value = c.asr_prompt || ''; $('c_asr_vad').checked = !!c.asr_vad;
+  $('c_hallucination_phrases').value = ((c.hallucination_phrases || {})[c.asr_language] || []).join('\n');
+  $('c_hallucination_phrases').dataset.lang = c.asr_language;
+  $('c_notify_enabled').checked = c.notify.enabled; $('c_notify_rate').value = c.notify.rate_limit_per_min; $('c_notify_min_duration').value = c.notify.min_duration_sec; $('c_notify_base_url').value = c.notify.base_url || ''; $('c_notify_language').value = c.notify.language || '';
+  const ms = $('c_asr_model'); ms.innerHTML = '';
+  for (const m of models.filter(m => m.kind === 'whisper')) ms.append(el('option', { value: m.name }, m.label + (m.present ? '' : ' (' + t('set.model_missing') + ')')));
+  if (![...ms.options].find(o => o.value === c.asr_model)) ms.append(el('option', { value: c.asr_model }, c.asr_model));
+  ms.value = c.asr_model;
+}
+function collectConfig() {
+  const lang = $('c_asr_language').value.trim() || 'ja';
+  const hp = Object.assign({}, cfg.hallucination_phrases || {});
+  hp[$('c_hallucination_phrases').dataset.lang || lang] = $('c_hallucination_phrases').value.split('\n').map(s => s.trim()).filter(Boolean);
+  return {
+    ui_language: $('c_ui_language').value, host: $('c_host').value.trim(), port: +$('c_port').value, record_dir: $('c_record_dir').value.trim(), mp3_bitrate: $('c_mp3_bitrate').value.trim(),
+    retention_days: +$('c_retention_days').value || 0, ffmpeg_path: $('c_ffmpeg_path').value.trim(), whisper_server_path: $('c_whisper_server_path').value.trim(),
+    asr_enabled: $('c_asr_enabled').checked, asr_model: $('c_asr_model').value, asr_language: lang, asr_threads: +$('c_asr_threads').value || 1, asr_idle_unload_min: +$('c_asr_idle_unload_min').value || 0, asr_vad: $('c_asr_vad').checked,
+    no_speech_threshold: +$('c_no_speech_threshold').value, asr_prompt: $('c_asr_prompt').value, hallucination_phrases: hp, dictionary: collectDict(),
+    notify: { enabled: $('c_notify_enabled').checked, rate_limit_per_min: +$('c_notify_rate').value || 20, min_duration_sec: +$('c_notify_min_duration').value || 0, base_url: $('c_notify_base_url').value.trim(), language: $('c_notify_language').value },
+  };
+}
+$('btnCfgSave').onclick = async () => {
+  try {
+    const prevLang = cfg.ui_language;
+    cfg = await api('PUT', '/api/config', collectConfig()); flash($('cfgMsg'), t('msg.saved'), 'ok');
+    if (cfg.ui_language !== prevLang) { await loadLang(cfg.ui_language); renderAll(); }
+    fillConfig();
+  } catch (e) { flash($('cfgMsg'), errText(e), 'err'); }
+};
+$('c_asr_language').onchange = () => { const l = $('c_asr_language').value.trim(); const hp = cfg.hallucination_phrases || {}; $('c_hallucination_phrases').value = (hp[l] || []).join('\n'); $('c_hallucination_phrases').dataset.lang = l; };
+$('btnAsrRestart').onclick = async () => { flash($('asrMsg'), t('msg.working')); try { await api('POST', '/api/asr/restart'); flash($('asrMsg'), t('msg.done'), 'ok'); } catch (e) { flash($('asrMsg'), errText(e), 'err'); } };
+$('btnTrPending').onclick = async () => { try { const r = await api('POST', '/api/transcribe/pending'); flash($('asrMsg'), t('msg.queued_n', { n: r.count }), 'ok'); } catch (e) { flash($('asrMsg'), errText(e), 'err'); } };
+$('btnTrAll').onclick = async () => { if (!confirm(t('set.tr_all_confirm'))) return; try { const r = await api('POST', '/api/transcribe/all'); flash($('asrMsg'), t('msg.queued_n', { n: r.count }), 'ok'); } catch (e) { flash($('asrMsg'), errText(e), 'err'); } };
+function renderBins() {
+  const b = $('binInfo'); b.innerHTML = '';
+  if (!status) return;
+  for (const [key, bin] of [['ffmpeg', status.ffmpeg], ['whisper-server', status.whisper_server]]) {
+    b.append(el('div', {}, el('span', { class: 'pill ' + (bin.found ? 'ok' : 'err') }, bin.found ? t('set.bin_found') : t('set.bin_missing')), ' ', el('b', {}, key), ' ', el('span', { class: 'mono muted' }, bin.found ? bin.path + ' (' + t('set.bin_source_' + bin.source) + ')' : t('set.bin_hint'))));
+  }
+  b.append(el('div', { class: 'muted' }, 'SRT: ' + (status.srt ? t('common.yes') : t('common.no'))));
+  const a = status.asr.server;
+  $('asrSrvPill').textContent = t('asr.state_' + a.state) + ' · ' + (a.gpu ? 'GPU: ' + a.gpu_info : t('set.cpu_only')) + (a.last_error ? ' · ' + a.last_error : '');
+  $('asrSrvPill').className = 'pill ' + (a.state === 'ready' ? 'ok' : a.state === 'error' ? 'err' : '');
+}
+async function loadDisk() { try { const d = await api('GET', '/api/disk'); $('diskInfo').textContent = t('set.disk', { used: fmtBytes(d.used_bytes), free: fmtBytes(d.free_bytes), files: d.files, dir: d.dir }); } catch (e) { } }
+function fmtBytes(b) { const u = ['B', 'KB', 'MB', 'GB', 'TB']; let i = 0; while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; } return fmtNum1.f.format(b) + ' ' + u[i]; }
+
+/* models */
+let modelTimer = null;
+function renderModels() {
+  const tb = $('modelTable').querySelector('tbody'); tb.innerHTML = '';
+  let busy = false;
+  for (const m of models) {
+    const tr = el('tr');
+    const st = el('td');
+    if (m.progress && (m.progress.state === 'downloading' || m.progress.state === 'verifying')) {
+      busy = true;
+      const pct = m.progress.total ? Math.round(m.progress.done / m.progress.total * 100) : 0;
+      st.append(el('div', { class: 'prog' }, el('i', { style: 'width:' + pct + '%' })), el('span', { class: 'muted' }, m.progress.state === 'verifying' ? t('set.model_verifying') : pct + '% ' + fmtBytes(m.progress.done)));
+    } else if (m.progress && m.progress.state === 'error') { st.append(el('span', { class: 'msg err' }, t('set.model_error') + ': ' + m.progress.error)); }
+    else if (m.present) st.append(el('span', { class: 'pill ok' }, t('set.model_present')));
+    else st.append(el('button', { class: 'small', onclick: async () => { try { await api('POST', '/api/models/' + m.name + '/download'); models = await api('GET', '/api/models'); renderModels(); } catch (e) { alert(errText(e)); } } }, t('set.model_download')));
+    tr.append(el('td', {}, el('b', {}, m.label), ' ', el('span', { class: 'tag' }, m.kind)), el('td', { class: 'mono muted' }, m.file + ' · ' + m.size_mb + ' MB'), st);
+    tb.append(tr);
+  }
+  clearTimeout(modelTimer);
+  if (busy) modelTimer = setTimeout(async () => { models = await api('GET', '/api/models'); renderModels(); }, 1000);
+}
+
+/* dictionary */
+function renderDict() {
+  const tb = $('dictTable').querySelector('tbody'); tb.innerHTML = '';
+  for (const d of cfg.dictionary || []) tb.append(dictRow(d.from, d.to));
+}
+function dictRow(from, to) {
+  const tr = el('tr');
+  tr.append(el('td', {}, el('input', { value: from, class: 'd_from', style: 'width:100%' })), el('td', {}, el('input', { value: to, class: 'd_to', style: 'width:100%' })), el('td', {}, el('button', { class: 'small danger', onclick: () => tr.remove() }, '×')));
+  return tr;
+}
+function collectDict() { return [...$('dictTable').querySelectorAll('tbody tr')].map(tr => ({ from: tr.querySelector('.d_from').value.trim(), to: tr.querySelector('.d_to').value })).filter(d => d.from); }
+$('btnDictAdd').onclick = () => $('dictTable').querySelector('tbody').append(dictRow('', ''));
+$('btnDictApply').onclick = async () => { try { cfg = await api('PUT', '/api/config', collectConfig()); const r = await api('POST', '/api/dictionary/apply'); flash($('dictMsg'), t('set.dict_applied', { n: r.count }), 'ok'); } catch (e) { flash($('dictMsg'), errText(e), 'err'); } };
+
+/* webhooks */
+function renderWebhooks() {
+  const l = $('whList'); l.innerHTML = '';
+  if (!webhooks.length) l.append(el('div', { class: 'empty' }, t('set.wh_empty')));
+  for (const w of webhooks) {
+    const rx = w.receiver_ids.length ? w.receiver_ids.map(id => { const r = receivers.find(x => x.id === id); return r ? r.name : id; }).join(', ') : t('wh.all_receivers');
+    l.append(el('div', { class: 'card' },
+      el('div', { class: 'head' }, el('b', { style: 'color:var(--fg)' }, w.name), el('span', {}, w.type + ' · ' + t('wh.timing_' + w.timing) + ' · ' + rx + (w.enabled ? '' : ' · ' + t('wh.disabled')))),
+      el('div', { class: 'btns', style: 'margin:0' }, el('button', { class: 'small', onclick: () => openWhForm(w) }, t('common.edit')), el('button', { class: 'small', onclick: () => testWh(w.id) }, t('wh.test')))));
+  }
+}
+async function testWh(id) { try { await api('POST', '/api/webhooks/' + id + '/test'); flash($('whMsg'), t('wh.test_queued'), 'ok'); setTimeout(loadNotifyLog, 3000); } catch (e) { flash($('whMsg'), errText(e), 'err'); } }
+$('btnWhAdd').onclick = () => openWhForm(null);
+$('btnWhCancel').onclick = () => { $('whForm').classList.add('hidden'); editingWh = null; };
+function openWhForm(w) {
+  editingWh = w ? w.id : 'new';
+  const d = w || { name: '', type: 'discord', url: '', timing: 'on_transcript', keyword_mode: 'any', keywords: [], mention: '', attach_audio: false, enabled: true, receiver_ids: [] };
+  $('w_name').value = d.name; $('w_type').value = d.type; $('w_url').value = d.url; $('w_timing').value = d.timing; $('w_keyword_mode').value = d.keyword_mode; $('w_keywords').value = (d.keywords || []).join(', '); $('w_mention').value = d.mention || ''; $('w_attach_audio').checked = !!d.attach_audio; $('w_enabled').checked = !!d.enabled;
+  const rc = $('w_receivers'); rc.innerHTML = ''; const sel = new Set(d.receiver_ids || []);
+  for (const r of receivers) { const chip = el('div', { class: 'chip' + (sel.has(r.id) ? ' active' : ''), onclick: () => { chip.classList.toggle('active'); } }, el('span', { class: 'cdot', style: 'background:' + r.color }), r.name); chip.dataset.id = r.id; rc.append(chip); }
+  $('btnWhDelete').classList.toggle('hidden', !w); $('btnWhTest').classList.toggle('hidden', !w);
+  whKwWarn(); $('whForm').classList.remove('hidden'); $('whForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+function whKwWarn() { $('whKwWarn').textContent = ($('w_timing').value === 'on_call' && $('w_keywords').value.trim()) ? t('wh.kw_ignored_warn') : ''; }
+$('w_timing').onchange = whKwWarn; $('w_keywords').oninput = whKwWarn;
+function collectWh() {
+  return { name: $('w_name').value.trim(), type: $('w_type').value, url: $('w_url').value.trim(), timing: $('w_timing').value, keyword_mode: $('w_keyword_mode').value, keywords: $('w_keywords').value.split(',').map(s => s.trim()).filter(Boolean), mention: $('w_mention').value.trim(), attach_audio: $('w_attach_audio').checked, enabled: $('w_enabled').checked, receiver_ids: [...$('w_receivers').querySelectorAll('.chip.active')].map(c => c.dataset.id) };
+}
+$('btnWhSave').onclick = async () => {
+  try { editingWh === 'new' ? await api('POST', '/api/webhooks', collectWh()) : await api('PUT', '/api/webhooks/' + editingWh, collectWh()); webhooks = await api('GET', '/api/webhooks'); renderWebhooks(); $('whForm').classList.add('hidden'); flash($('whMsg'), t('msg.saved'), 'ok'); } catch (e) { flash($('whMsg'), errText(e), 'err'); }
+};
+$('btnWhTest').onclick = async () => { if (editingWh && editingWh !== 'new') { try { await api('PUT', '/api/webhooks/' + editingWh, collectWh()); } catch (e) { flash($('whMsg'), errText(e), 'err'); return; } testWh(editingWh); } };
+$('btnWhDelete').onclick = async () => { if (!confirm(t('wh.delete_confirm'))) return; try { await api('DELETE', '/api/webhooks/' + editingWh); webhooks = await api('GET', '/api/webhooks'); renderWebhooks(); $('whForm').classList.add('hidden'); } catch (e) { flash($('whMsg'), errText(e), 'err'); } };
+async function loadNotifyLog() {
+  try {
+    const rows = await api('GET', '/api/notify/log'); const tb = $('nlogTable').querySelector('tbody'); tb.innerHTML = '';
+    if (!rows.length) tb.append(el('tr', {}, el('td', { colspan: 5, class: 'muted' }, t('nlog.empty'))));
+    for (const r of rows) {
+      const w = webhooks.find(x => x.id === r.webhook_id);
+      tb.append(el('tr', { style: r.status === 'failed' ? 'color:var(--rec)' : '' }, el('td', {}, ts(r.sent_at)), el('td', {}, w ? w.name : r.webhook_id), el('td', {}, r.call_id ? el('a', { href: '#/calls/' + r.call_id }, '#' + r.call_id) : '-'), el('td', {}, t('nlog.status_' + r.status) + (r.http_status ? ' (' + r.http_status + ')' : '')), el('td', { class: 'mono' }, r.error || '')));
+    }
+  } catch (e) { }
+}
+
+/* ---------- boot ---------- */
+function renderAll() { applyI18n(); renderChips(); renderDetail(); renderLogRxFilter(); renderStatsRx(); renderDayChips(); if (tab === 'settings') loadSettings(); if (tab === 'stats') loadStats(); if (tab === 'log') loadCalls(); loadRecent(); }
+(async function boot() {
+  try { cfg = await api('GET', '/api/config'); } catch (e) { cfg = { ui_language: 'auto', port: 8000 }; }
+  await loadLang(cfg.ui_language);
+  try { [devices, network] = await Promise.all([api('GET', '/api/devices'), api('GET', '/api/network')]); } catch (e) { }
+  await poll();
+  await loadReceivers();
+  route();
+  loadRecent();
+  setInterval(poll, 250);
+  setInterval(() => { if (tab === 'rec') loadRecent(); }, 2000);
+  setInterval(async () => { const prev = JSON.stringify(receivers.map(r => [r.id, r.name, r.color, r.vox_threshold_db])); receivers = await api('GET', '/api/receivers'); if (JSON.stringify(receivers.map(r => [r.id, r.name, r.color, r.vox_threshold_db])) !== prev) { renderChips(); renderDetail(); renderLogRxFilter(); renderStatsRx(); } }, 5000);
+})();
+</script>
+</body>
+</html>
