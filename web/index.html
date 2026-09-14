@@ -78,6 +78,13 @@ tr.hl td{background:#1e2a44}
 .dict tr td:last-child{width:60px}
 .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
 pre.cmd{background:#0a0c10;border:1px solid var(--line);border-radius:8px;padding:10px;overflow-x:auto;font-size:12px;white-space:pre-wrap;word-break:break-all}
+.savebar{position:sticky;bottom:0;display:flex;align-items:center;gap:12px;padding:10px 14px;margin:14px -16px -16px;background:var(--panel);border-top:1px solid var(--line);z-index:4}
+.savebar .hint{color:var(--muted);font-size:13px}
+.savebar.dirty{background:#2a2410;border-top-color:var(--warn)}
+.savebar.dirty .hint{color:var(--warn);font-weight:600}
+.savebar.dirty #btnCfgSave{box-shadow:0 0 0 2px var(--warn);animation:pulse 1.5s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 5px rgba(245,158,11,.35)}}
+@media (max-width:600px){.savebar{margin:14px -10px -10px}}
 .hidden{display:none!important}
 .muted{color:var(--muted)}
 .prog{height:6px;background:#0a0c10;border-radius:3px;overflow:hidden}
@@ -308,7 +315,7 @@ pre.cmd{background:#0a0c10;border:1px solid var(--line);border-radius:8px;paddin
     <h2 data-i18n="set.asr"></h2>
     <div class="grid">
       <label class="row"><input type="checkbox" id="c_asr_enabled"><span data-i18n="set.asr_enabled"></span></label>
-      <label><span data-i18n="set.asr_model"></span><select id="c_asr_model"></select><span class="muted" data-i18n="set.asr_model_hint"></span></label>
+      <label><span data-i18n="set.asr_model"></span><select id="c_asr_model"></select></label>
       <label><span data-i18n="set.asr_language"></span><input id="c_asr_language" placeholder="ja"></label>
       <label><span data-i18n="set.asr_threads"></span><input type="number" id="c_asr_threads" min="1"></label>
       <label><span data-i18n="set.asr_idle_unload_min"></span><input type="number" id="c_asr_idle_unload_min" min="0"></label>
@@ -380,11 +387,10 @@ pre.cmd{background:#0a0c10;border:1px solid var(--line);border-radius:8px;paddin
     <div style="overflow-x:auto"><table id="nlogTable"><thead><tr><th data-i18n="nlog.time"></th><th data-i18n="nlog.webhook"></th><th data-i18n="nlog.call"></th><th data-i18n="nlog.status"></th><th data-i18n="nlog.error"></th></tr></thead><tbody></tbody></table></div>
   </div>
 
-  <div class="panel">
-    <div class="btns" style="margin:0">
-      <button class="primary" id="btnCfgSave" data-i18n="set.save"></button>
-      <span class="msg" id="cfgMsg"></span>
-    </div>
+  <div class="savebar" id="saveBar">
+    <button class="primary" id="btnCfgSave" data-i18n="set.save"></button>
+    <span class="hint" id="saveHint"></span>
+    <span class="msg" id="cfgMsg"></span>
   </div>
 </section>
 </main>
@@ -461,7 +467,6 @@ function route() {
   showTab(m2 ? m2[1] : 'rec');
 }
 window.addEventListener('hashchange', route);
-window.addEventListener('beforeunload', ev => { if (settingsDirty) { ev.preventDefault(); ev.returnValue = ''; } });
 
 /* ---------- receivers (rec tab) ---------- */
 async function loadReceivers() {
@@ -836,18 +841,17 @@ function collectConfig() {
 $('btnCfgSave').onclick = async () => {
   try {
     const prevLang = cfg.ui_language;
-    cfg = await api('PUT', '/api/config', collectConfig()); settingsDirty = false; flash($('cfgMsg'), t('msg.saved'), 'ok');
+    cfg = await api('PUT', '/api/config', collectConfig()); setDirty(false); flash($('cfgMsg'), t('msg.saved'), 'ok');
     if (cfg.ui_language !== prevLang) { await loadLang(cfg.ui_language); renderAll(); }
     fillConfig();
   } catch (e) { flash($('cfgMsg'), errText(e), 'err'); }
 };
-$('c_asr_language').onchange = () => { const l = $('c_asr_language').value.trim(); const hp = cfg.hallucination_phrases || {}; $('c_hallucination_phrases').value = (hp[l] || []).join('\n'); $('c_hallucination_phrases').dataset.lang = l; autoSaveCfg(); };
-// ASR controls take effect immediately (model switch restarts whisper-server), so save them on change.
-async function autoSaveCfg() { try { cfg = await api('PUT', '/api/config', collectConfig()); settingsDirty = false; flash($('asrMsg'), t('msg.saved'), 'ok'); } catch (e) { flash($('asrMsg'), errText(e), 'err'); } }
-['c_asr_model', 'c_asr_enabled', 'c_asr_vad', 'c_asr_threads', 'c_asr_idle_unload_min', 'c_no_speech_threshold'].forEach(id => $(id).addEventListener('change', autoSaveCfg));
-// Any other edit marks the form dirty so switching tabs does not discard it.
+$('c_asr_language').onchange = () => { const l = $('c_asr_language').value.trim(); const hp = cfg.hallucination_phrases || {}; $('c_hallucination_phrases').value = (hp[l] || []).join('\n'); $('c_hallucination_phrases').dataset.lang = l; };
+// Unsaved edits: highlight the sticky save bar until "Save settings" is pressed.
 let settingsDirty = false;
-document.querySelectorAll('#tab-settings input, #tab-settings select, #tab-settings textarea').forEach(el => el.addEventListener('input', () => { settingsDirty = true; }));
+function setDirty(v) { settingsDirty = v; $('saveBar').classList.toggle('dirty', v); $('saveHint').textContent = v ? t('set.unsaved') : ''; }
+$('tab-settings').addEventListener('input', ev => { if (ev.target.closest('#whForm')) return; setDirty(true); });
+$('tab-settings').addEventListener('change', ev => { if (ev.target.closest('#whForm')) return; setDirty(true); });
 $('btnAsrRestart').onclick = async () => { flash($('asrMsg'), t('msg.working')); try { await api('POST', '/api/asr/restart'); flash($('asrMsg'), t('msg.done'), 'ok'); } catch (e) { flash($('asrMsg'), errText(e), 'err'); } };
 $('btnTrPending').onclick = async () => { try { const r = await api('POST', '/api/transcribe/pending'); flash($('asrMsg'), t('msg.queued_n', { n: r.count }), 'ok'); } catch (e) { flash($('asrMsg'), errText(e), 'err'); } };
 $('btnTrAll').onclick = async () => { if (!confirm(t('set.tr_all_confirm'))) return; try { const r = await api('POST', '/api/transcribe/all'); flash($('asrMsg'), t('msg.queued_n', { n: r.count }), 'ok'); } catch (e) { flash($('asrMsg'), errText(e), 'err'); } };
@@ -894,12 +898,12 @@ function renderDict() {
 }
 function dictRow(from, to) {
   const tr = el('tr');
-  tr.append(el('td', {}, el('input', { value: from, class: 'd_from', style: 'width:100%' })), el('td', {}, el('input', { value: to, class: 'd_to', style: 'width:100%' })), el('td', {}, el('button', { class: 'small danger', onclick: () => tr.remove() }, '×')));
+  tr.append(el('td', {}, el('input', { value: from, class: 'd_from', style: 'width:100%' })), el('td', {}, el('input', { value: to, class: 'd_to', style: 'width:100%' })), el('td', {}, el('button', { class: 'small danger', onclick: () => { tr.remove(); setDirty(true); } }, '×')));
   return tr;
 }
 function collectDict() { return [...$('dictTable').querySelectorAll('tbody tr')].map(tr => ({ from: tr.querySelector('.d_from').value.trim(), to: tr.querySelector('.d_to').value })).filter(d => d.from); }
-$('btnDictAdd').onclick = () => $('dictTable').querySelector('tbody').append(dictRow('', ''));
-$('btnDictApply').onclick = async () => { try { cfg = await api('PUT', '/api/config', collectConfig()); const r = await api('POST', '/api/dictionary/apply'); flash($('dictMsg'), t('set.dict_applied', { n: r.count }), 'ok'); } catch (e) { flash($('dictMsg'), errText(e), 'err'); } };
+$('btnDictAdd').onclick = () => { $('dictTable').querySelector('tbody').append(dictRow('', '')); setDirty(true); };
+$('btnDictApply').onclick = async () => { try { cfg = await api('PUT', '/api/config', collectConfig()); setDirty(false); const r = await api('POST', '/api/dictionary/apply'); flash($('dictMsg'), t('set.dict_applied', { n: r.count }), 'ok'); } catch (e) { flash($('dictMsg'), errText(e), 'err'); } };
 
 /* webhooks */
 function renderWebhooks() {
