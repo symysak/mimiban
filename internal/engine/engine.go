@@ -72,6 +72,9 @@ type Engine struct {
 	cancel   context.CancelFunc
 	wg       sync.WaitGroup
 	asrState asrState
+	// fakeCapture is set when a CaptureFactory was injected (tests); the
+	// ffmpeg binary is then not required to start receivers.
+	fakeCapture bool
 }
 
 type asrState struct {
@@ -102,6 +105,8 @@ func New(o Options) *Engine {
 	}
 	if e.o.Factory == nil {
 		e.o.Factory = e.realFactory
+	} else {
+		e.fakeCapture = true
 	}
 	if e.o.Encoder == nil {
 		e.o.Encoder = &ffmpegEncoder{ffmpeg: e.ffmpeg.Path}

@@ -90,6 +90,29 @@ func TestParsers(t *testing.T) {
 	if len(d) != 1 || d[0].Name != "Microphone (USB Audio Device)" {
 		t.Fatalf("dshow: %+v", d)
 	}
+	// ffmpeg 7+/9 on Windows prefixes device lines with "[in#0 @ ...]" instead
+	// of "[dshow @ ...]" (captured from ffmpeg 9.0.1 essentials on Windows 11).
+	dshow9 := `[in#0 @ 0000027cdf2d2780] "HP Wide Vision HD Camera" (video)
+[in#0 @ 0000027cdf2d2780]   Alternative name "@device_pnp_\\?\usb#vid_0408&pid_5425&mi_00#7&2c366651&0&0000#{65e8773d-8f56-11d0-a3b9-00a0c9223196}\global"
+[in#0 @ 0000027cdf2d2780] "OBS Virtual Camera" (none)
+[in#0 @ 0000027cdf2d2780]   Alternative name "@device_sw_{860BB310-5D01-11D0-BD3B-00A0C911CE86}\{A3FCE0F5-3493-419F-958A-ABA1250EC20B}"
+[in#0 @ 0000027cdf2d2780] "Microphone Array (AMD Audio Device)" (audio)
+[in#0 @ 0000027cdf2d2780]   Alternative name "@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\wave_{F715034F-1152-4F02-9E84-12A2445C92D6}"
+[in#0 @ 0000027cdf2d2780] "CABLE Output (VB-Audio Virtual Cable)" (audio)
+[in#0 @ 0000027cdf2d2780]   Alternative name "@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\wave_{754FC6C9-3C4B-4793-8FE3-6A2178185699}"
+Error opening input file dummy.
+`
+	d = ParseDshow(dshow9)
+	if len(d) != 2 || d[0].Name != "Microphone Array (AMD Audio Device)" || d[0].Index != 0 ||
+		d[1].Name != "CABLE Output (VB-Audio Virtual Cable)" || d[1].Index != 1 {
+		t.Fatalf("dshow (ffmpeg 9 format): %+v", d)
+	}
+	// Japanese device names (UTF-8 in ffmpeg's output) must pass through untouched.
+	dshowJa := "[in#0 @ 0x1] \"マイク配列 (Realtek(R) Audio)\" (audio)\n[in#0 @ 0x1]   Alternative name \"@device_cm_{33D9A762}\\wave_{F0}\"\n"
+	d = ParseDshow(dshowJa)
+	if len(d) != 1 || d[0].Name != "マイク配列 (Realtek(R) Audio)" {
+		t.Fatalf("dshow (japanese): %+v", d)
+	}
 	pactl := "0\talsa_output.pci.monitor\tmodule\ts16le 2ch 44100Hz\tSUSPENDED\n1\talsa_input.usb-foo\tmodule\ts16le 1ch 48000Hz\tRUNNING\n"
 	d = ParsePactl(pactl)
 	if len(d) != 1 || d[0].Name != "alsa_input.usb-foo" || d[0].Channels != 1 {
