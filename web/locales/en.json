@@ -261,5 +261,6 @@
   "err.http_500": "Server error",
   "err.http_404": "Not found",
   "set.asr_vad": "Use Silero VAD inside whisper-server",
-  "set.asr_vad_note": "VAD skips silent parts and reduces hallucinations, but some whisper.cpp versions crash whisper-server on input with no speech at all (it is restarted automatically). Turn it off if that happens."
+  "set.asr_vad_note": "VAD skips silent parts and reduces hallucinations, but some whisper.cpp versions crash whisper-server on input with no speech at all (it is restarted automatically). Turn it off if that happens.",
+  "set.asr_model_hint": "Saved immediately; used from the next call on"
 }

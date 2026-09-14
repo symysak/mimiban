@@ -308,7 +308,7 @@ pre.cmd{background:#0a0c10;border:1px solid var(--line);border-radius:8px;paddin
     <h2 data-i18n="set.asr"></h2>
     <div class="grid">
       <label class="row"><input type="checkbox" id="c_asr_enabled"><span data-i18n="set.asr_enabled"></span></label>
-      <label><span data-i18n="set.asr_model"></span><select id="c_asr_model"></select></label>
+      <label><span data-i18n="set.asr_model"></span><select id="c_asr_model"></select><span class="muted" data-i18n="set.asr_model_hint"></span></label>
       <label><span data-i18n="set.asr_language"></span><input id="c_asr_language" placeholder="ja"></label>
       <label><span data-i18n="set.asr_threads"></span><input type="number" id="c_asr_threads" min="1"></label>
       <label><span data-i18n="set.asr_idle_unload_min"></span><input type="number" id="c_asr_idle_unload_min" min="0"></label>
@@ -461,6 +461,7 @@ function route() {
   showTab(m2 ? m2[1] : 'rec');
 }
 window.addEventListener('hashchange', route);
+window.addEventListener('beforeunload', ev => { if (settingsDirty) { ev.preventDefault(); ev.returnValue = ''; } });
 
 /* ---------- receivers (rec tab) ---------- */
 async function loadReceivers() {
@@ -801,6 +802,7 @@ function barChart(svg, buckets, labelFn, colorFn) {
 /* ---------- SETTINGS tab ---------- */
 async function loadSettings() {
   try {
+    if (settingsDirty) { [models, webhooks, network] = await Promise.all([api('GET', '/api/models'), api('GET', '/api/webhooks'), api('GET', '/api/network')]); renderModels(); renderWebhooks(); loadNotifyLog(); loadDisk(); renderBins(); return; }
     [cfg, models, webhooks, network] = await Promise.all([api('GET', '/api/config'), api('GET', '/api/models'), api('GET', '/api/webhooks'), api('GET', '/api/network')]);
     fillConfig(); renderModels(); renderDict(); renderWebhooks(); loadNotifyLog(); loadDisk(); renderBins();
   } catch (e) { flash($('cfgMsg'), errText(e), 'err'); }
@@ -834,12 +836,18 @@ function collectConfig() {
 $('btnCfgSave').onclick = async () => {
   try {
     const prevLang = cfg.ui_language;
-    cfg = await api('PUT', '/api/config', collectConfig()); flash($('cfgMsg'), t('msg.saved'), 'ok');
+    cfg = await api('PUT', '/api/config', collectConfig()); settingsDirty = false; flash($('cfgMsg'), t('msg.saved'), 'ok');
     if (cfg.ui_language !== prevLang) { await loadLang(cfg.ui_language); renderAll(); }
     fillConfig();
   } catch (e) { flash($('cfgMsg'), errText(e), 'err'); }
 };
-$('c_asr_language').onchange = () => { const l = $('c_asr_language').value.trim(); const hp = cfg.hallucination_phrases || {}; $('c_hallucination_phrases').value = (hp[l] || []).join('\n'); $('c_hallucination_phrases').dataset.lang = l; };
+$('c_asr_language').onchange = () => { const l = $('c_asr_language').value.trim(); const hp = cfg.hallucination_phrases || {}; $('c_hallucination_phrases').value = (hp[l] || []).join('\n'); $('c_hallucination_phrases').dataset.lang = l; autoSaveCfg(); };
+// ASR controls take effect immediately (model switch restarts whisper-server), so save them on change.
+async function autoSaveCfg() { try { cfg = await api('PUT', '/api/config', collectConfig()); settingsDirty = false; flash($('asrMsg'), t('msg.saved'), 'ok'); } catch (e) { flash($('asrMsg'), errText(e), 'err'); } }
+['c_asr_model', 'c_asr_enabled', 'c_asr_vad', 'c_asr_threads', 'c_asr_idle_unload_min', 'c_no_speech_threshold'].forEach(id => $(id).addEventListener('change', autoSaveCfg));
+// Any other edit marks the form dirty so switching tabs does not discard it.
+let settingsDirty = false;
+document.querySelectorAll('#tab-settings input, #tab-settings select, #tab-settings textarea').forEach(el => el.addEventListener('input', () => { settingsDirty = true; }));
 $('btnAsrRestart').onclick = async () => { flash($('asrMsg'), t('msg.working')); try { await api('POST', '/api/asr/restart'); flash($('asrMsg'), t('msg.done'), 'ok'); } catch (e) { flash($('asrMsg'), errText(e), 'err'); } };
 $('btnTrPending').onclick = async () => { try { const r = await api('POST', '/api/transcribe/pending'); flash($('asrMsg'), t('msg.queued_n', { n: r.count }), 'ok'); } catch (e) { flash($('asrMsg'), errText(e), 'err'); } };
 $('btnTrAll').onclick = async () => { if (!confirm(t('set.tr_all_confirm'))) return; try { const r = await api('POST', '/api/transcribe/all'); flash($('asrMsg'), t('msg.queued_n', { n: r.count }), 'ok'); } catch (e) { flash($('asrMsg'), errText(e), 'err'); } };

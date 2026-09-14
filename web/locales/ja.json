@@ -261,5 +261,6 @@
   "err.http_500": "サーバーエラー",
   "err.http_404": "見つかりません",
   "set.asr_vad": "Silero VAD を whisper-server 側で使う",
-  "set.asr_vad_note": "VAD は無音区間を飛ばして幻覚を減らしますが、whisper.cpp の一部バージョンでは音声が全く無い入力で whisper-server が異常終了します（自動で再起動されます）。問題が出たら無効にしてください。"
+  "set.asr_vad_note": "VAD は無音区間を飛ばして幻覚を減らしますが、whisper.cpp の一部バージョンでは音声が全く無い入力で whisper-server が異常終了します（自動で再起動されます）。問題が出たら無効にしてください。",
+  "set.asr_model_hint": "変更すると即保存され、次の交信から新しいモデルで動きます"
 }
