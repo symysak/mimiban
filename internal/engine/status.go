@@ -100,6 +100,19 @@ func (e *Engine) Disk() DiskUsage {
 		}
 		return nil
 	})
-	du.FreeBytes, du.TotalBytes = diskFree(dir)
+	// recordings/ is created lazily on the first call, so fall back to the
+	// nearest existing ancestor; statfs / GetDiskFreeSpaceEx fail otherwise.
+	probe := dir
+	for {
+		if _, err := os.Stat(probe); err == nil {
+			break
+		}
+		parent := filepath.Dir(probe)
+		if parent == probe {
+			break
+		}
+		probe = parent
+	}
+	du.FreeBytes, du.TotalBytes = diskFree(probe)
 	return du
 }

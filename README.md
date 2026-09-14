@@ -67,6 +67,20 @@ whisper.cpp の `examples/server`（バイナリ名 `whisper-server`）を使い
 
 オプション: `mimiban serve --dir <データフォルダ> --port 8000 --host 0.0.0.0`
 
+**Windows のファイアウォール**: 初回起動時に「Windows セキュリティの重要な警告」（Windows Defender ファイアウォール）が出るので、「プライベート ネットワーク」にチェックを入れて「アクセスを許可する」を押します。これを閉じてしまうと同じ LAN のスマホから開けません（PC 自身の `http://localhost:8000/` は開けます）。後から許可する場合は、管理者の PowerShell で次を実行します（ポートを変えた場合は `8000` を読み替え）。
+
+```powershell
+New-NetFirewallRule -DisplayName "Mimiban UI" -Direction Inbound -Protocol TCP -LocalPort 8000 -Profile Private -Action Allow
+```
+
+遠隔エージェントを受ける PC では、レシーバーの待受ポート（既定 5004）の **UDP** も同様に許可します（SRT は UDP 上で動きます）。
+
+```powershell
+New-NetFirewallRule -DisplayName "Mimiban agent stream" -Direction Inbound -Protocol UDP -LocalPort 5004 -Profile Private -Action Allow
+```
+
+ネットワークの種類が「パブリック」になっていると既定で受信がブロックされます。設定 → ネットワークとインターネット → Wi-Fi（または イーサネット）で「プライベート ネットワーク」に切り替えてください。
+
 ### 5. モデルをダウンロードする
 
 設定タブ →「モデル」で、使うモデルの「ダウンロード」を押します（Hugging Face から取得、SHA-256 で検証）。日本語無線なら `small (q5_1)` または `kotoba-whisper v2.0 日本語特化 (q5_0)` がおすすめです。`Silero VAD` も入れておくと無音区間を飛ばして幻覚が減ります。取得後、「モデル」の選択肢で選んで「設定を保存」。

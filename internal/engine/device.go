@@ -64,7 +64,7 @@ func (e *Engine) StartReceiver(id string) error {
 	if r == nil {
 		return e.errorf("receiver_not_found")
 	}
-	if !e.ffmpeg.Found {
+	if !e.ffmpeg.Found && !e.fakeCapture {
 		return e.errorf("ffmpeg_not_found")
 	}
 	e.mu.Lock()

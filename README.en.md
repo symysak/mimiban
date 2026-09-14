@@ -20,6 +20,15 @@ Mimiban captures the audio output of radio scanners/receivers through a PC audio
    ```
 
    The console prints the UI URL (default `http://0.0.0.0:8000/`) and which binaries were found. Open it from any device on the LAN.
+
+   **Windows firewall**: on the first start Windows Defender Firewall asks whether to allow `mimiban.exe`; tick *Private networks* and click *Allow access*, otherwise phones on the LAN cannot reach the UI (localhost still works). To allow it later, run in an elevated PowerShell (adjust the port if you changed it), and add the receiver's listen port (default 5004, **UDP**) on a PC that receives a remote agent:
+
+   ```powershell
+   New-NetFirewallRule -DisplayName "Mimiban UI" -Direction Inbound -Protocol TCP -LocalPort 8000 -Profile Private -Action Allow
+   New-NetFirewallRule -DisplayName "Mimiban agent stream" -Direction Inbound -Protocol UDP -LocalPort 5004 -Profile Private -Action Allow
+   ```
+
+   If the network is classified as *Public*, inbound connections are blocked by default; switch it to *Private* in Settings → Network & Internet.
 5. In **Settings → Models** download a model (for Japanese radio `small (q5_1)` or `kotoba-whisper v2.0`; `Silero VAD` is recommended too), select it and save.
 6. In **Record** click **+ Add receiver**, pick the audio device (or a remote agent / a URL such as an RTLSDR-Airband UDP stream), save. Drag the white line on the level meter to set the VOX threshold; it is applied immediately.
 
